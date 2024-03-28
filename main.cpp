@@ -9,6 +9,7 @@
 
 #include "mc6809.h"
 #include "mc6850.h"
+#include "dkc.h"
 #include "term.h"
 #include "memory.h"
 
@@ -31,10 +32,12 @@ int main(int argc, char *argv[])
 	auto ram = std::make_shared<RAM>(ram_size);
 	auto rom = std::make_shared<ROM>(rom_size);
 	auto acia = std::make_shared<mc6850>(term);
+	auto disks = std::make_shared<dkc>();
 
 	cpu.attach(ram, 0x0000, ~(ram_size - 1));
 	cpu.attach(rom, rom_base, ~(rom_size - 1));
 	cpu.attach(acia, 0xc000, 0xfffe);
+	cpu.attach(disks, 0xc008, 0xfff8);
 
 	cpu.FIRQ.bind([&]() {
 		return acia->IRQ;
