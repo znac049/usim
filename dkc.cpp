@@ -35,10 +35,7 @@ bool dkc::openDisk(const char *diskName, int diskNum)
 	struct stat inf;
 	int res = stat(diskName, &inf);
 
-	if (res != 0) {
-		printf("\nDisk%d - '%s' not found\n", diskNum, diskName);
-	}
-	else {
+	if (res == 0) {
 		FILE *fd = fopen(diskName, "a+");
 		if (fd != NULL) {
 			long sectors;
@@ -46,7 +43,7 @@ bool dkc::openDisk(const char *diskName, int diskNum)
 			fseek(fd, 0L, SEEK_END);
 			sectors = ftell(fd) / SECTOR_SIZE;
 
-			printf("\nDisk%d - disk '%s' opened ok - number of sectors: %ld\n", diskNum, diskName, sectors);
+			//printf("\nDisk%d - disk '%s' opened ok - number of sectors: %ld\n", diskNum, diskName, sectors);
 
 			disks[diskNum] = fd;
 			numSectors[diskNum] = sectors;
@@ -60,9 +57,10 @@ bool dkc::openDisk(const char *diskName, int diskNum)
 
 Byte dkc::read(Word offset)
 {
-	switch (offset & 1) {
+  //printf("\r\nDKC: Read @%d\r\n", offset);
+	switch (offset) {
 		case 0: // status register
-			printf("\r\nDKC: Read SR=0x%02x\r\n", sr);
+			//printf("\r\nDKC: Read SR=0x%02x\r\n", sr);
 			return sr;
 			break;
 

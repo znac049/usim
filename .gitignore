@@ -5,3 +5,6 @@ machdep.h
 *.bak
 *.sublime-workspace
 usim
+*.lst
+*.hex
+*.img
