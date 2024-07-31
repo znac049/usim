@@ -97,10 +97,13 @@ Byte Terminal::real_read()
 		char c = fgetc(insert);
 
 		if (c != EOF) {
-			return c;
+		  if (c == '\n')
+		    c = '\r';
+		  
+		  return c;
 		}
 
-		printf("\r\nEnd of insert file.\r\n");
+		//printf("\r\nEnd of insert file.\r\n");
 
 		fclose(insert);
 		insert = NULL;

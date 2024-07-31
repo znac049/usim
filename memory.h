@@ -59,7 +59,9 @@ public:
 				}
 
 public:
+		void		load(const char *filename, Word base);
 		void		load_intelhex(const char *filename, Word base);
+		void		load_decb(const char *filename, Word base);
 
 };
 

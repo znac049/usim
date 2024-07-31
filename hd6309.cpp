@@ -1,23 +1,23 @@
 //
 //
-//	mc6809.cpp
+//	hd6309.cpp
 //
 //	(C) R.P.Bellis
 //
 
-#include "mc6809.h"
+#include "hd6309.h"
 #include <memory>
 #include <cstdio>
 
-mc6809::mc6809() : a(acc.byte.a), b(acc.byte.b), d(acc.d)
+hd6309::hd6309() : a(acc.byte.a), b(acc.byte.b), e(acc.byte.e), f(acc.byte.f), d(acc.word.d), w(acc.word.w), q(acc.q)
 {
 }
 
-mc6809::~mc6809()
+hd6309::~hd6309()
 {
 }
 
-void mc6809::reset()
+void hd6309::reset()
 {
 	USim::reset();
 
@@ -35,7 +35,7 @@ void mc6809::reset()
 	nmi_previous = true;	/* no NMI present */
 }
 
-void mc6809::tick()
+void hd6309::tick()
 {
 	// handle the attached devices
 	USim::tick();
@@ -91,7 +91,7 @@ void mc6809::tick()
 	--cycles;
 }
 
-void mc6809::do_nmi()
+void hd6309::do_nmi()
 {
 	if (!waiting_cwai) {
 		cc.bit.e = 1;
@@ -101,7 +101,7 @@ void mc6809::do_nmi()
 	pc = read_word(0xfffc);
 }
 
-void mc6809::do_firq()
+void hd6309::do_firq()
 {
 	if (!waiting_cwai) {
 		cc.bit.e = 0;
@@ -111,7 +111,7 @@ void mc6809::do_firq()
 	pc = read_word(0xfff6);
 }
 
-void mc6809::do_irq()
+void hd6309::do_irq()
 {
 	if (!waiting_cwai) {
 		cc.bit.e = 1;
@@ -121,7 +121,7 @@ void mc6809::do_irq()
 	pc = read_word(0xfff8);
 }
 
-void mc6809::fetch_instruction()
+void hd6309::fetch_instruction()
 {
 	ir = fetch();
 
@@ -170,7 +170,7 @@ void mc6809::fetch_instruction()
 	}
 }
 
-void mc6809::execute_instruction()
+void hd6309::execute_instruction()
 {
 	switch (ir) {
 		case 0x3a:
@@ -183,8 +183,14 @@ void mc6809::execute_instruction()
 			adda(); break;
 		case 0xcb: case 0xdb: case 0xeb: case 0xfb:
 			addb(); break;
+		case 0x118b: case 0x119b: case 0x11ab: case 0x11bb:
+			adde(); break;
+		case 0x11cb: case 0x11db: case 0x11eb: case 0x11fb:
+			addf(); break;
 		case 0xc3: case 0xd3: case 0xe3: case 0xf3:
 			addd(); break;
+		case 0x108b: case 0x109b: case 0x10ab: case 0x10bb:
+			addw(); break;
 		case 0x84: case 0x94: case 0xa4: case 0xb4:
 			anda(); break;
 		case 0xc4: case 0xd4: case 0xe4: case 0xf4:
@@ -245,14 +251,28 @@ void mc6809::execute_instruction()
 		case 0x5e: case 0x5f:
 			// 0x5e undocumented
 			clrb(); break;
+        case 0x114f:
+            clre(); break;
+        case 0x115f:
+            clrf(); break;
+        case 0x104f:
+            clrd(); break;
+        case 0x105f:
+            clrw(); break;
 		case 0x0f: case 0x6f: case 0x7f:
 			clr(); break;
 		case 0x81: case 0x91: case 0xa1: case 0xb1:
 			cmpa(); break;
 		case 0xc1: case 0xd1: case 0xe1: case 0xf1:
 			cmpb(); break;
+		case 0x1181: case 0x1191: case 0x11a1: case 0x11b1:
+			cmpe(); break;
+		case 0x11c1: case 0x11d1: case 0x11e1: case 0x11f1:
+			cmpf(); break;
 		case 0x1083: case 0x1093: case 0x10a3: case 0x10b3:
 			cmpd(); break;
+		case 0x1081: case 0x1091: case 0x10a1: case 0x10b1:
+			cmpw(); break;
 		case 0x118c: case 0x119c: case 0x11ac: case 0x11bc:
 			cmps(); break;
 		case 0x8c: case 0x9c: case 0xac: case 0xbc:
@@ -305,8 +325,14 @@ void mc6809::execute_instruction()
 			lda(); break;
 		case 0xc6: case 0xd6: case 0xe6: case 0xf6:
 			ldb(); break;
+		case 0x1186: case 0x1196: case 0x11a6: case 0x11b6:
+			lde(); break;
+		case 0x11c6: case 0x11d6: case 0x11e6: case 0x11f6:
+			ldf(); break;
 		case 0xcc: case 0xdc: case 0xec: case 0xfc:
 			ldd(); break;
+		case 0x1086: case 0x1096: case 0x10a6: case 0x10b6:
+			ldw(); break;
 		case 0x10ce: case 0x10de: case 0x10ee: case 0x10fe:
 			lds(); break;
 		case 0xce: case 0xde: case 0xee: case 0xfe:
@@ -395,8 +421,14 @@ void mc6809::execute_instruction()
 			sta(); break;
 		case 0xd7: case 0xe7: case 0xf7:
 			stb(); break;
+		case 0x1197: case 0x11a7: case 0x11b7:
+			ste(); break;
+		case 0x11d7: case 0x11e7: case 0x11f7:
+			stf(); break;
 		case 0xdd: case 0xed: case 0xfd:
 			std(); break;
+		case 0x1097: case 0x10a7: case 0x10b7:
+			stw(); break;
 		case 0x10df: case 0x10ef: case 0x10ff:
 			sts(); break;
 		case 0xdf: case 0xef: case 0xff:
@@ -409,8 +441,14 @@ void mc6809::execute_instruction()
 			suba(); break;
 		case 0xc0: case 0xd0: case 0xe0: case 0xf0:
 			subb(); break;
+		case 0x1180: case 0x1190: case 0x11a0: case 0x11b0:
+			sube(); break;
+		case 0x11c0: case 0x11d0: case 0x11e0: case 0x11f0:
+			subf(); break;
 		case 0x83: case 0x93: case 0xa3: case 0xb3:
 			subd(); break;
+		case 0x1080: case 0x1090: case 0x10a0: case 0x10b0:
+			subw(); break;
 		case 0x3f:
 			swi(); break;
 		case 0x103f:
@@ -425,6 +463,14 @@ void mc6809::execute_instruction()
 			tsta(); break;
 		case 0x5d:
 			tstb(); break;
+		case 0x114d:
+			tste(); break;
+		case 0x115d:
+			tstf(); break;
+		case 0x104d:
+			tstd(); break;
+		case 0x105d:
+			tstw(); break;
 		case 0x0d: case 0x6d: case 0x7d:
 			tst(); break;
 		case 0x1024:
@@ -463,7 +509,7 @@ void mc6809::execute_instruction()
 	}
 }
 
-void mc6809::print_regs()
+void hd6309::print_regs()
 {
 	char flags[] = "EFHINZVC";
 	for (uint8_t i = 0, mask = 0x80; mask; ++i, mask >>= 1) {
@@ -475,14 +521,14 @@ void mc6809::print_regs()
 		pc, flags, s, u, a, b, x, y, dp);
 }
 
-void mc6809::pre_exec()
+void hd6309::pre_exec()
 {
 	if (!m_trace) return;
 
 	print_regs();
 }
 
-void mc6809::post_exec()
+void hd6309::post_exec()
 {
 	if (!m_trace) return;
 
@@ -490,7 +536,7 @@ void mc6809::post_exec()
 }
 
 // used for EXG and TFR instructions
-Word& mc6809::wordrefreg(int r)
+Word& hd6309::wordrefreg(int r)
 {
 	static Word no_return = 0;
 
@@ -507,7 +553,7 @@ Word& mc6809::wordrefreg(int r)
 	return no_return;
 }
 
-Byte& mc6809::byterefreg(int r)
+Byte& hd6309::byterefreg(int r)
 {
 	static Byte no_return = 0;
 
@@ -523,7 +569,7 @@ Byte& mc6809::byterefreg(int r)
 }
 
 // decodes the postbyte for most indexed modes
-Word& mc6809::ix_refreg(Byte post)
+Word& hd6309::ix_refreg(Byte post)
 {
 	static Word no_return = 0;
 
@@ -539,7 +585,7 @@ Word& mc6809::ix_refreg(Byte post)
 	return no_return;
 }
 
-Byte mc6809::fetch_operand()
+Byte hd6309::fetch_operand()
 {
 	switch (mode) {
 		case immediate:
@@ -554,7 +600,7 @@ Byte mc6809::fetch_operand()
 	}
 }
 
-Word mc6809::fetch_word_operand()
+Word hd6309::fetch_word_operand()
 {
 	switch (mode) {
 		case immediate:
@@ -569,7 +615,7 @@ Word mc6809::fetch_word_operand()
 	}
 }
 
-Word mc6809::fetch_effective_address()
+Word hd6309::fetch_effective_address()
 {
 	switch (mode) {
 		case extended:
@@ -599,7 +645,7 @@ Word mc6809::fetch_effective_address()
 	}
 }
 
-Word mc6809::fetch_indexed_operand()
+Word hd6309::fetch_indexed_operand()
 {
 	if ((post & 0x80) == 0x00) {		// ,R + 5 bit offset
 		cycles += 2;
@@ -658,7 +704,7 @@ Word mc6809::fetch_indexed_operand()
 	}
 }
 
-void mc6809::do_postincrement()
+void hd6309::do_postincrement()
 {
 	switch (post & 0x9f) {
 		case 0x80:
@@ -673,7 +719,7 @@ void mc6809::do_postincrement()
 	}
 }
 
-void mc6809::do_predecrement()
+void hd6309::do_predecrement()
 {
 	switch (post & 0x9f) {
 		case 0x82:
@@ -740,7 +786,7 @@ static std::string fmt(const std::string& format, Args ... args)
 	return std::string(buf.get(), buf.get() + size - 1 );
 }
 
-std::string mc6809::disasm_indexed()
+std::string hd6309::disasm_indexed()
 {
 	static const char regs[] = "XYUS";
 	const char reg = regs[(post >> 5) & 0x03];
@@ -780,7 +826,7 @@ std::string mc6809::disasm_indexed()
 	}
 }
 
-std::string mc6809::disasm_operand()
+std::string hd6309::disasm_operand()
 {
 	// special cases for PSHx / PULx / EXG / TFR
 	switch (ir) {

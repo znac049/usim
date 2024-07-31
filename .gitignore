@@ -8,3 +8,5 @@ usim
 *.lst
 *.hex
 *.img
+*.decb
+\#*
