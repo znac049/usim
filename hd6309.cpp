@@ -33,6 +33,9 @@ void hd6309::reset()
 	waiting_sync = false;	/* not in SYNC */
 	waiting_cwai = false;	/* not in CWAI */
 	nmi_previous = true;	/* no NMI present */
+
+    md.bit.nm = 0;          /* 6809 emulation mode */
+    md.bit.fm = 0;          /* 6809 FIRQ mode */
 }
 
 void hd6309::tick()
@@ -195,6 +198,8 @@ void hd6309::execute_instruction()
 			anda(); break;
 		case 0xc4: case 0xd4: case 0xe4: case 0xf4:
 			andb(); break;
+        case 0x1084: case 0x1094: case 0x10a4: case 0x10b4:
+            andd(); break;
 		case 0x1c:
 			andcc(); break;
 		case 0x47:
@@ -219,6 +224,8 @@ void hd6309::execute_instruction()
 			bita(); break;
 		case 0xc5: case 0xd5: case 0xe5: case 0xf5:
 			bitb(); break;
+        case 0x113c:
+            bitmd(); break;
 		case 0x2f:
 			ble(); break;
 		case 0x23:
@@ -287,6 +294,14 @@ void hd6309::execute_instruction()
 		case 0x52: case 0x53:
 			// 0x52 undocumented
 			comb(); break;
+        case 0x1143:
+            come(); break;
+        case 0x1153:
+            comf(); break;
+        case 0x1043:
+            comd(); break;
+        case 0x1053:
+            comw(); break;
 		case 0x03: case 0x62: case 0x63: case 0x73:
 			// 0x62 undocumented
 			com(); break;
@@ -300,6 +315,14 @@ void hd6309::execute_instruction()
 		case 0x5a: case 0x5b:
 			// 0x5b undocumented
 			decb(); break;
+		case 0x114a:
+			dece(); break;
+		case 0x115a:
+			decf(); break;
+		case 0x104a:
+			decd(); break;
+		case 0x105a:
+			decw(); break;
 		case 0x0a: case 0x0b:
 		case 0x6a: case 0x6b:
 		case 0x7a: case 0x7b:
@@ -309,12 +332,22 @@ void hd6309::execute_instruction()
 			eora(); break;
 		case 0xc8: case 0xd8: case 0xe8: case 0xf8:
 			eorb(); break;
+        case 0x1088: case 0x1098: case 0x10a8: case 0x10b8:
+            eord(); break;
 		case 0x1e:
 			exg(); break;
 		case 0x4c:
 			inca(); break;
 		case 0x5c:
 			incb(); break;
+		case 0x114c:
+			ince(); break;
+		case 0x115c:
+			incf(); break;
+		case 0x104c:
+			incd(); break;
+		case 0x105c:
+			incw(); break;
 		case 0x0c: case 0x6c: case 0x7c:
 			inc(); break;
 		case 0x0e: case 0x6e: case 0x7e:
@@ -341,6 +374,8 @@ void hd6309::execute_instruction()
 			ldx(); break;
 		case 0x108e: case 0x109e: case 0x10ae: case 0x10be:
 			ldy(); break;
+        case 0x113d:
+            ldmd(); break;
 		case 0x32:
 			leas(); break;
 		case 0x33:
@@ -385,6 +420,8 @@ void hd6309::execute_instruction()
 			ora(); break;
 		case 0xca: case 0xda: case 0xea: case 0xfa:
 			orb(); break;
+        case 0x108a: case 0x109a: case 0x10aa: case 0x10ba:
+            ord(); break;
 		case 0x1a:
 			orcc(); break;
 		case 0x34:

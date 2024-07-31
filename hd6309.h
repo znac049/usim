@@ -94,6 +94,25 @@ protected:	// Processor registers
 		} bit;
 	} cc;
 
+    union {
+        Byte            all;
+        struct {
+#ifdef MACH_BITFIELDS_LSB_FIRST
+			Byte		nm : 1;         // Native mode
+			Byte		fm : 1;         // FIRQ mode
+			Byte		notused : 4;    // Unused
+            Byte        ii : 1;         // Illegal instruction
+            Byte        div0 : 1;       // Divide by 0
+#else
+            Byte        div0 : 1;
+            Byte        ii : 1;
+			Byte		notused : 4;
+			Byte		nm : 1;
+			Byte		fm : 1;
+#endif
+        } bit;
+    } md;
+
 private:	// internal processor state
 	bool			waiting_sync;
 	bool			waiting_cwai;
@@ -116,7 +135,7 @@ private:	// instruction implementations
 	void			abx();
 	void			adca(), adcb();
 	void			adda(), addb(), adde(), addf(), addd(), addw();
-	void			anda(), andb(), andcc();
+	void			anda(), andb(), andcc(), andd();
 	void			asra(), asrb(), asr();
 	void			bcc(), lbcc();
 	void			bcs(), lbcs();
@@ -125,6 +144,7 @@ private:	// instruction implementations
 	void			bgt(), lbgt();
 	void			bhi(), lbhi();
 	void			bita(), bitb();
+    void            bitmd();
 	void			ble(), lble();
 	void			bls(), lbls();
 	void			blt(), lblt();
@@ -139,24 +159,25 @@ private:	// instruction implementations
 	void			clra(), clrb(), clre(), clrf(), clrd(), clrw(), clr();
 	void			cmpa(), cmpb(), cmpe(), cmpf();
 	void			cmpd(), cmpw(), cmpx(), cmpy(), cmpu(), cmps();
-	void			coma(), comb(), com();
+	void			coma(), comb(), come(), comf(), comd(), comw(), com();
 	void			cwai();
 	void			daa();
-	void			deca(), decb(), dec();
-	void			eora(), eorb();
+	void			deca(), decb(), dece(), decf(), decd(), decw(), dec();
+	void			eora(), eorb(), eord();
 	void			exg();
-	void			inca(), incb(), inc();
+	void			inca(), incb(), ince(), incf(), incd(), incw(), inc();
 	void			jmp();
 	void			jsr();
 	void			lda(), ldb(), lde(), ldf();
 	void			ldd(), ldw(), ldx(), ldy(), lds(), ldu();
+    void            ldmd();
 	void			leax(), leay(), leas(), leau(); 
 	void			lsla(), lslb(), lsl();
 	void			lsra(), lsrb(), lsr();
 	void			mul();
 	void			nega(), negb(), neg();
 	void			nop();
-	void			ora(), orb(), orcc();
+	void			ora(), orb(), orcc(), ord();
 	void			pshs(), pshu();
 	void			puls(), pulu();
 	void			rola(), rolb(), rol();
@@ -177,22 +198,28 @@ protected:	// helper functions
 	void			help_adc(Byte&);
 	void			help_add(Byte&);
 	void			help_and(Byte&);
+    void            help_and(Word&);
 	void			help_asr(Byte&);
 	void			help_bit(Byte);
 	void			help_clr(Byte&);
-    void            help_clr_word(Word&);
+    void            help_clr(Word&);
 	void			help_cmp(Byte);
 	void			help_cmp(Word);
 	void			help_com(Byte&);
+    void            help_com(Word&);
 	void			help_dec(Byte&);
+    void            help_dec(Word&);
 	void			help_eor(Byte&);
+	void			help_eor(Word&);
 	void			help_inc(Byte&);
+    void            help_inc(Word&);
 	void			help_ld(Byte&);
 	void			help_ld(Word&);
 	void			help_lsr(Byte&);
 	void			help_lsl(Byte&);
 	void			help_neg(Byte&);
 	void			help_or(Byte&);
+	void			help_or(Word&);
 	void			help_psh(Byte, Word&, Word&);
 	void			help_pul(Byte, Word&, Word&);
 	void			help_ror(Byte&);
@@ -203,7 +230,7 @@ protected:	// helper functions
 	void			help_sub(Byte&);
 	void			help_sub(Word&);
 	void			help_tst(Byte);
-    void            help_tst_word(Word);
+    void            help_tst(Word);
 
 protected:	// overloadable functions (e.g. for breakpoints)
 	virtual void		do_br(const char *, bool);

@@ -71,6 +71,14 @@ void hd6309::help_and(Byte& x)
 	cc.bit.v = 0;
 }
 
+void hd6309::help_and(Word& x)
+{
+	x = x & fetch_operand();
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+	cc.bit.v = 0;
+}
+
 void hd6309::help_asr(Byte& x)
 {
 	cc.bit.c = btst(x, 0);
@@ -98,7 +106,7 @@ void hd6309::help_clr(Byte& x)
 	++cycles;
 }
 
-void hd6309::help_clr_word(Word& x)
+void hd6309::help_clr(Word& x)
 {
 	cc.all &= 0xf0;
 	cc.all |= 0x04;
@@ -139,11 +147,30 @@ void hd6309::help_com(Byte& x)
 	++cycles;
 }
 
+void hd6309::help_com(Word& x)
+{
+	x = ~x;
+	cc.bit.c = 1;
+	cc.bit.v = 0;
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+	++cycles;
+}
+
 void hd6309::help_dec(Byte& x)
 {
 	cc.bit.v = (x == 0x80);
 	x = x - 1;
 	cc.bit.n = btst(x, 7);
+	cc.bit.z = !x;
+	++cycles;
+}
+
+void hd6309::help_dec(Word& x)
+{
+	cc.bit.v = (x == 0x8000);
+	x = x - 1;
+	cc.bit.n = btst(x, 15);
 	cc.bit.z = !x;
 	++cycles;
 }
@@ -156,11 +183,28 @@ void hd6309::help_eor(Byte& x)
 	cc.bit.z = !x;
 }
 
+void hd6309::help_eor(Word& x)
+{
+	x = x ^ fetch_operand();
+	cc.bit.v = 0;
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+}
+
 void hd6309::help_inc(Byte& x)
 {
 	cc.bit.v = (x == 0x7f);
 	x = x + 1;
 	cc.bit.n = btst(x, 7);
+	cc.bit.z = !x;
+	++cycles;
+}
+
+void hd6309::help_inc(Word& x)
+{
+	cc.bit.v = (x == 0x7fff);
+	x = x + 1;
+	cc.bit.n = btst(x, 15);
 	cc.bit.z = !x;
 	++cycles;
 }
@@ -217,6 +261,14 @@ void hd6309::help_or(Byte& x)
 	x = x | fetch_operand();
 	cc.bit.v = 0;
 	cc.bit.n = btst(x, 7);
+	cc.bit.z = !x;
+}
+
+void hd6309::help_or(Word& x)
+{
+	x = x | fetch_operand();
+	cc.bit.v = 0;
+	cc.bit.n = btst(x, 15);
 	cc.bit.z = !x;
 }
 
@@ -317,7 +369,7 @@ void hd6309::help_tst(Byte x)
 	++cycles;
 }
 
-void hd6309::help_tst_word(Word x)
+void hd6309::help_tst(Word x)
 {
 	cc.bit.v = 0;
 	cc.bit.n = btst(x, 15);
@@ -424,6 +476,12 @@ void hd6309::andb()
 {
 	insn = "ANDB";
 	help_and(b);
+}
+
+void hd6309::andd()
+{
+	insn = ":ANDD";
+	help_and(d);
 }
 
 void hd6309::andcc()
@@ -537,6 +595,13 @@ void hd6309::bitb()
 {
 	insn = "BITB";
 	help_bit(b);
+}
+
+void hd6309::bitmd()
+{
+	Byte imm = fetch_operand() & 0xc0; // Only interested in the top two bits
+
+    cc.bit.z = !(md.all & imm);
 }
 
 void hd6309::ble()
@@ -704,13 +769,13 @@ void hd6309::clrf()
 void hd6309::clrd()
 {
 	insn = ":CLRD";
-	help_clr_word(d);
+	help_clr(d);
 }
 
 void hd6309::clrw()
 {
 	insn = ":CLRW";
-	help_clr_word(w);
+	help_clr(w);
 }
 
 void hd6309::clr()
@@ -805,6 +870,30 @@ void hd6309::comb()
 	help_com(b);
 }
 
+void hd6309::come()
+{
+	insn = ":COME";
+	help_com(e);
+}
+
+void hd6309::comf()
+{
+	insn = ":COMF";
+	help_com(f);
+}
+
+void hd6309::comd()
+{
+	insn = ":COMD";
+	help_com(d);
+}
+
+void hd6309::comw()
+{
+	insn = ":COMW";
+	help_com(w);
+}
+
 void hd6309::com()
 {
 	insn = "COM";
@@ -854,6 +943,30 @@ void hd6309::decb()
 	help_dec(b);
 }
 
+void hd6309::dece()
+{
+	insn = ":DECE";
+	help_dec(e);
+}
+
+void hd6309::decf()
+{
+	insn = ":DECF";
+	help_dec(f);
+}
+
+void hd6309::decd()
+{
+	insn = ":DECD";
+	help_dec(d);
+}
+
+void hd6309::decw()
+{
+	insn = ":DECW";
+	help_dec(w);
+}
+
 void hd6309::dec()
 {
 	insn = "DEC";
@@ -873,6 +986,12 @@ void hd6309::eorb()
 {
 	insn = "EORB";
 	help_eor(b);
+}
+
+void hd6309::eord()
+{
+	insn = ":EORD";
+	help_eor(d);
 }
 
 void hd6309::exg()
@@ -903,6 +1022,30 @@ void hd6309::incb()
 {
 	insn = "INCB";
 	help_inc(b);
+}
+
+void hd6309::ince()
+{
+	insn = ":INCE";
+	help_inc(e);
+}
+
+void hd6309::incf()
+{
+	insn = ":INCF";
+	help_inc(f);
+}
+
+void hd6309::incd()
+{
+	insn = ":INCD";
+	help_inc(d);
+}
+
+void hd6309::incw()
+{
+	insn = ":INCW";
+	help_inc(w);
 }
 
 void hd6309::inc()
@@ -987,6 +1130,13 @@ void hd6309::ldu()
 {
 	insn = "LDU";
 	help_ld(u);
+}
+
+void hd6309::ldmd()
+{
+	Byte imm = fetch_operand();
+    md.bit.nm = btst(imm, 0);
+    md.bit.fm = btst(imm, 1);
 }
 
 void hd6309::leax()
@@ -1107,6 +1257,12 @@ void hd6309::orb()
 {
 	insn = "ORB";
 	help_or(b);
+}
+
+void hd6309::ord()
+{
+	insn = ":ORD";
+	help_or(d);
 }
 
 void hd6309::orcc()
@@ -1420,13 +1576,13 @@ void hd6309::tstf()
 void hd6309::tstd()
 {
 	insn = ":TSTD";
-	help_tst_word(d);
+	help_tst(d);
 }
 
 void hd6309::tstw()
 {
 	insn = ":TSTW";
-	help_tst_word(w);
+	help_tst(w);
 }
 
 void hd6309::tst()
