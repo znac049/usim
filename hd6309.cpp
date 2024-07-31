@@ -224,6 +224,8 @@ void hd6309::execute_instruction()
 			bita(); break;
 		case 0xc5: case 0xd5: case 0xe5: case 0xf5:
 			bitb(); break;
+        case 0x1085: case 0x1095: case 0x10a5: case 0x10b5:
+            bitd(); break;
         case 0x113c:
             bitmd(); break;
 		case 0x2f:
@@ -388,6 +390,8 @@ void hd6309::execute_instruction()
 			lsla(); break;
 		case 0x58:
 			lslb(); break;
+        case 0x1048:
+            lsld(); break;
 		case 0x08: case 0x68: case 0x78:
 			lsl(); break;
 		case 0x44: case 0x45:
@@ -396,6 +400,10 @@ void hd6309::execute_instruction()
 		case 0x54: case 0x55:
 			// 0x55 undocumented
 			lsrb(); break;
+        case 0x1044:
+            lsrd(); break;
+        case 0x1054:
+            lsrw(); break;
 		case 0x04: case 0x05:
 		case 0x64: case 0x65:
 		case 0x74: case 0x75:
@@ -436,12 +444,20 @@ void hd6309::execute_instruction()
 			rola(); break;	
 		case 0x59:
 			rolb(); break;
+        case 0x1049:
+            rold(); break;
+        case 0x1059:
+            rolw(); break;
 		case 0x09: case 0x69: case 0x79:
 			rol(); break;
 		case 0x46:
 			rora(); break;	
 		case 0x56:
 			rorb(); break;
+        case 0x1046:
+            rord(); break;
+        case 0x1056:
+            rorw(); break;
 		case 0x06: case 0x66: case 0x76:
 			ror(); break;
 		case 0x3b:
@@ -452,6 +468,8 @@ void hd6309::execute_instruction()
 			sbca(); break;
 		case 0xc2: case 0xd2: case 0xe2: case 0xf2: 
 			sbcb(); break;
+        case 0x1082: case 0x1092: case 0x10a2: case 0x10b2:
+            sbcd(); break;
 		case 0x1d:
 			sex(); break;
 		case 0x97: case 0xa7: case 0xb7:

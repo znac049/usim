@@ -98,6 +98,14 @@ void hd6309::help_bit(Byte x)
 	cc.bit.z = !t;
 }
 
+void hd6309::help_bit(Word x)
+{
+	Word t = x & fetch_word_operand();
+	cc.bit.n = btst(t, 15);
+	cc.bit.v = 0;
+	cc.bit.z = !t;
+}
+
 void hd6309::help_clr(Byte& x)
 {
 	cc.all &= 0xf0;
@@ -235,7 +243,26 @@ void hd6309::help_lsl(Byte& x)
 	++cycles;
 }
 
+void hd6309::help_lsl(Word& x)
+{
+	cc.bit.c = btst(x, 15);
+	cc.bit.v = btst(x, 15) ^ btst(x, 14);
+	x <<= 1;
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+	++cycles;
+}
+
 void hd6309::help_lsr(Byte& x)
+{
+	cc.bit.c = btst(x, 0);
+	x >>= 1;	/* Shift word right */
+	cc.bit.n = 0;
+	cc.bit.z = !x;
+	++cycles;
+}
+
+void hd6309::help_lsr(Word& x)
 {
 	cc.bit.c = btst(x, 0);
 	x >>= 1;	/* Shift word right */
@@ -308,6 +335,18 @@ void hd6309::help_rol(Byte& x)
 	++cycles;
 }
 
+void hd6309::help_rol(Word& x)
+{
+	int	oc = cc.bit.c;
+	cc.bit.v = btst(x, 15) ^ btst(x, 14);
+	cc.bit.c = btst(x, 15);
+	x = x << 1;
+	if (oc) bset(x, 0);
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+	++cycles;
+}
+
 void hd6309::help_ror(Byte& x)
 {
 	int	oc = cc.bit.c;
@@ -315,6 +354,17 @@ void hd6309::help_ror(Byte& x)
 	x = x >> 1;
 	if (oc) bset(x, 7);
 	cc.bit.n = btst(x, 7);
+	cc.bit.z = !x;
+	++cycles;
+}
+
+void hd6309::help_ror(Word& x)
+{
+	int	oc = cc.bit.c;
+	cc.bit.c = btst(x, 0);
+	x = x >> 1;
+	if (oc) bset(x, 15);
+	cc.bit.n = btst(x, 15);
 	cc.bit.z = !x;
 	++cycles;
 }
@@ -328,6 +378,18 @@ void hd6309::help_sbc(Byte& x)
 	cc.bit.c = btst((Word)t, 8);
 	cc.bit.n = btst((Byte)t, 7);
 	x = t & 0xff;
+	cc.bit.z = !x;
+}
+
+void hd6309::help_sbc(Word& x)
+{
+	Byte    m = fetch_word_operand();
+	int t = x - m - cc.bit.c;
+
+	cc.bit.v = btst((Word)(x ^ m ^ t ^ (t >> 1)), 15);
+	cc.bit.c = btst((DWord)t, 16);
+	cc.bit.n = btst((Word)t, 15);
+	x = t & 0xffff;
 	cc.bit.z = !x;
 }
 
@@ -595,6 +657,12 @@ void hd6309::bitb()
 {
 	insn = "BITB";
 	help_bit(b);
+}
+
+void hd6309::bitd()
+{
+	insn = ":BITD";
+	help_bit(d);
 }
 
 void hd6309::bitmd()
@@ -1181,6 +1249,12 @@ void hd6309::lslb()
 	help_lsl(b);
 }
 
+void hd6309::lsld()
+{
+	insn = ":LSLD";
+	help_lsl(d);
+}
+
 void hd6309::lsl()
 {
 	insn = "LSL";
@@ -1200,6 +1274,18 @@ void hd6309::lsrb()
 {
 	insn = "LSRB";
 	help_lsr(b);
+}
+
+void hd6309::lsrd()
+{
+	insn = ":LSRD";
+	help_lsr(d);
+}
+
+void hd6309::lsrw()
+{
+	insn = ":LSRW";
+	help_lsr(w);
 }
 
 void hd6309::lsr()
@@ -1316,6 +1402,18 @@ void hd6309::rolb()
 	help_rol(b);
 }
 
+void hd6309::rold()
+{
+	insn = ":ROLD";
+	help_rol(d);
+}
+
+void hd6309::rolw()
+{
+	insn = ":ROLD";
+	help_rol(d);
+}
+
 void hd6309::rol()
 {
 	insn = "ROL";
@@ -1335,6 +1433,18 @@ void hd6309::rorb()
 {
 	insn = "RORB";
 	help_ror(b);
+}
+
+void hd6309::rord()
+{
+	insn = ":RORD";
+	help_ror(d);
+}
+
+void hd6309::rorw()
+{
+	insn = ":RORW";
+	help_ror(w);
 }
 
 void hd6309::ror()
@@ -1375,6 +1485,12 @@ void hd6309::sbcb()
 {
 	insn = "SBCB";
 	help_sbc(b);
+}
+
+void hd6309::sbcd()
+{
+	insn = ":SBCD";
+	help_sbc(d);
 }
 
 void hd6309::sex()
