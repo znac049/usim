@@ -27,14 +27,28 @@ protected: // Processor addressing modes
 				indexed,
 				extended,
 				inherent,
-				relative
+				relative,
+                reg2reg
 	} mode;
+
+    enum {
+                add_op,
+                adc_op,
+                sub_op,
+                sbc_op,
+                and_op,
+                or_op,
+                eor_op,
+                cmp_op
+    } reg_op;
+
 
 protected:	// Processor registers
 
 	Word			u, s;		// Stack pointers
 	Word			x, y;		// Index registers
-	Byte			dp;		// Direct Page register
+    Word            v;          // Value register
+	Byte			dp;		    // Direct Page register
 	union {
 		DWord			q;
 		struct {
@@ -118,12 +132,16 @@ private:	// internal processor state
 	bool			waiting_cwai;
 	bool			nmi_previous;
 
+private:
+    bool            exit_on_sync;
+
 private:	// instruction and operand fetch and decode
 	Word&			ix_refreg(Byte);
 
 	void			fetch_instruction();
 	Byte			fetch_operand();
 	Word			fetch_word_operand();
+    DWord           fetch_dword_operand();
 	Word			fetch_effective_address();
 	Word			fetch_indexed_operand();
 	void			execute_instruction();
@@ -133,10 +151,10 @@ private:	// instruction and operand fetch and decode
 
 private:	// instruction implementations
 	void			abx();
-	void			adca(), adcb();
-	void			adda(), addb(), adde(), addf(), addd(), addw();
+	void			adca(), adcb(), adcd();
+	void			adda(), addb(), adde(), addf(), addd(), addw(), addr();
 	void			anda(), andb(), andcc(), andd();
-	void			asra(), asrb(), asr();
+	void			asra(), asrb(), asrd(), asr();
 	void			bcc(), lbcc();
 	void			bcs(), lbcs();
 	void			beq(), lbeq();
@@ -170,23 +188,25 @@ private:	// instruction implementations
 	void			jsr();
 	void			lda(), ldb(), lde(), ldf();
 	void			ldd(), ldw(), ldx(), ldy(), lds(), ldu();
+    void            ldq();
     void            ldmd();
 	void			leax(), leay(), leas(), leau(); 
 	void			lsla(), lslb(), lsld(), lsl();
 	void			lsra(), lsrb(), lsrd(), lsrw(), lsr();
 	void			mul();
-	void			nega(), negb(), neg();
+	void			nega(), negb(), negd(), neg();
 	void			nop();
 	void			ora(), orb(), orcc(), ord();
-	void			pshs(), pshu();
-	void			puls(), pulu();
+	void			pshs(), pshu(), pshsw(), pshuw();
+	void			puls(), pulu(), pulsw(), puluw();
 	void			rola(), rolb(), rold(), rolw(), rol();
 	void			rora(), rorb(), rord(), rorw(), ror();
 	void			rti(), rts();
 	void			sbca(), sbcb(), sbcd();
-	void			sex();
+	void			sex(), sexw();
 	void			sta(), stb(), ste(), stf();
 	void			std(), stw(), stx(), sty(), sts(), stu();
+    void            stq();
 	void			suba(), subb(), sube(), subf();
 	void			subd(), subw();
 	void			swi(), swi2(), swi3();
@@ -196,10 +216,12 @@ private:	// instruction implementations
 
 protected:	// helper functions
 	void			help_adc(Byte&);
+	void			help_adc(Word&);
 	void			help_add(Byte&);
 	void			help_and(Byte&);
     void            help_and(Word&);
 	void			help_asr(Byte&);
+	void			help_asr(Word&);
 	void			help_bit(Byte);
 	void			help_bit(Word);
 	void			help_clr(Byte&);
@@ -221,6 +243,7 @@ protected:	// helper functions
 	void			help_lsl(Byte&);
 	void			help_lsl(Word&);
 	void			help_neg(Byte&);
+	void			help_neg(Word&);
 	void			help_or(Byte&);
 	void			help_or(Word&);
 	void			help_psh(Byte, Word&, Word&);
@@ -237,6 +260,7 @@ protected:	// helper functions
 	void			help_sub(Word&);
 	void			help_tst(Byte);
     void            help_tst(Word);
+
 
 protected:	// overloadable functions (e.g. for breakpoints)
 	virtual void		do_br(const char *, bool);
@@ -258,10 +282,12 @@ protected: 	// instruction tracing
 	Word			insn_pc;
 	const char*		insn;
 	Byte			post;
-	Word			operand;
+	DWord			operand;
 
 	std::string		disasm_operand();
 	std::string		disasm_indexed();
+
+    int             reg_size_compare(Byte);
 
 public:		// external signal pins
 	InputPin		IRQ, FIRQ, NMI;
@@ -274,6 +300,9 @@ public:
 	virtual void	tick();
 
 	virtual void	print_regs();
+
+    void            enable_exit_on_sync();
+    void            disable_exit_on_sync();
 
 	Byte&			byterefreg(int);
 	Word&			wordrefreg(int);
@@ -319,4 +348,14 @@ inline void hd6309::do_pul(Word& sp, Word& val)
 {
 	val  = read(sp++) << 8;
 	val |= read(sp++);
+}
+
+inline void hd6309::enable_exit_on_sync()
+{
+    exit_on_sync = true;
+}
+
+inline void hd6309::disable_exit_on_sync()
+{
+    exit_on_sync = false;
 }

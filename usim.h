@@ -80,9 +80,12 @@ class USimMotorola : virtual public USim {
 // Memory access functions taking target byte order into account
 public:
 	virtual Word		fetch_word();
+    virtual DWord       fetch_dword();
 
 	virtual Word		read_word(Word offset);
+	virtual DWord		read_dword(Word offset);
 	virtual void		write_word(Word offset, Word val);
+	virtual void		write_dword(Word offset, DWord val);
 
 };
 
@@ -91,8 +94,11 @@ class USimIntel : virtual public USim {
 // Memory access functions taking target byte order into account
 public:
 	virtual Word		fetch_word();
+    virtual DWord       fetch_dword();
 
 	virtual Word		read_word(Word offset);
+	virtual DWord		read_dword(Word offset);
 	virtual void		write_word(Word offset, Word val);
+	virtual void		write_dword(Word offset, DWord val);
 
 };

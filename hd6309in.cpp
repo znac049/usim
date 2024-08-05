@@ -38,6 +38,31 @@ void hd6309::help_adc(Byte& x)
 	cc.bit.z = !x;
 }
 
+void hd6309::help_adc(Word& x)
+{
+	Byte	m = fetch_word_operand();
+
+	{
+		Word	t = (x & 0xff) + (m & 0xff) + cc.bit.c;
+		cc.bit.h = btst(t, 8);
+	}
+
+	{
+		Word	t = (x & 0x7fff) + (m & 0x7fff) + cc.bit.c;
+		cc.bit.v = btst(t, 15);
+	}
+
+	{
+		DWord	t = x + m + cc.bit.c;
+		cc.bit.c = btst(t, 16);
+		x = t & 0xff;
+	}
+
+	cc.bit.v ^= cc.bit.c;
+	cc.bit.n = btst(x, 15);
+	cc.bit.z = !x;
+}
+
 void hd6309::help_add(Byte& x)
 {
 	Byte	m = fetch_operand();
@@ -85,6 +110,17 @@ void hd6309::help_asr(Byte& x)
 	x >>= 1;	/* Shift word right */
 	if ((cc.bit.n = btst(x, 6)) != 0) {
 		bset(x, 7);
+	}
+	cc.bit.z = !x;
+	++cycles;
+}
+
+void hd6309::help_asr(Word& x)
+{
+	cc.bit.c = btst(x, 0);
+	x >>= 1;	/* Shift word right */
+	if ((cc.bit.n = btst(x, 14)) != 0) {
+		bset(x, 15);
 	}
 	cc.bit.z = !x;
 	++cycles;
@@ -283,6 +319,18 @@ void hd6309::help_neg(Byte& x)
 	++cycles;
 }
 
+void hd6309::help_neg(Word& x)
+{
+	int	t = 0 - x;
+
+	cc.bit.v = btst((Word)(x ^ t ^ (t >> 1)), 15);
+	cc.bit.c = btst((DWord)t, 16);
+	cc.bit.n = btst((Word)t, 15);
+	x = t & 0xffff;
+	cc.bit.z = !x;
+	++cycles;
+}
+
 void hd6309::help_or(Byte& x)
 {
 	x = x | fetch_operand();
@@ -460,6 +508,12 @@ void hd6309::adcb()
 	help_adc(b);
 }
 
+void hd6309::adcd()
+{
+	insn = ":ADCD";
+	help_adc(d);
+}
+
 void hd6309::adda()
 {
 	insn = "ADDA";
@@ -528,6 +582,58 @@ void hd6309::addw()
 	++cycles;
 }
 
+void hd6309::addr()
+{
+    insn = ":ADDR";
+    Byte regs = fetch_operand();
+    int cmp = reg_size_compare(regs);
+    Word src = 42;
+    Word t1;
+    DWord t2;
+    int bitnum = 7;
+
+    if (!cmp) {
+        // Source and destination are not the same size
+    }
+    
+    if (regs & 0x08) {
+        // 8-bit target
+        Byte& dst = byterefreg(regs & 0xf);
+
+        t1 = (src & 0x7f) + (dst & 0x7f);
+    }
+    else {
+        // 16-bit target
+        Word& dst = wordrefreg(regs & 0xf);
+        bitnum = 15;
+
+        t1 = (src & 0x7fff) + (dst & 0x7fff);
+    }
+
+    t2 = (DWord)src + (Dword)dst;
+
+
+        // 16-bit src and dest
+        Word& src = wordrefreg(regs>>4);
+        Word& dst = wordrefreg(regs & 0xf);
+
+        {
+            Word t = (src & 0x7fff) + (dst & 0x7fff);
+            cc.bit.v = btst(t, 15);
+        }
+
+        {
+            DWord t = (DWord)src + dst;
+            cc.bit.c = btst(t, 16);
+            dst = (Word)(t & 0xffff);
+        }
+
+        cc.bit.v ^= cc.bit.c;
+        cc.bit.n = btst(dst, 15);
+        cc.bit.z = !dst;
+    ++cycles;
+}
+
 void hd6309::anda()
 {
 	insn = "ANDA";
@@ -563,6 +669,12 @@ void hd6309::asrb()
 {
 	insn = "ASRB";
 	help_asr(b);
+}
+
+void hd6309::asrd()
+{
+	insn = ":ASRD";
+	help_asr(d);
 }
 
 void hd6309::asr()
@@ -1069,13 +1181,49 @@ void hd6309::exg()
 	int r1 = (w & 0xf0) >> 4;
 	int r2 = (w & 0x0f) >> 0;
 
-	if (r1 <= 5 && r2 <= 5) {
-		std::swap(wordrefreg(r2), wordrefreg(r1));
-	} else if (r1 >= 8 && r1 <= 11 && r2 >= 8 && r2 <= 11) {
-		std::swap(byterefreg(r2), byterefreg(r1));
-	} else {
-		invalid("invalid EXG operand");
-	}
+    // Native mode
+ 	if (r1 <= 7 && r2 <= 7) {
+        // 16-bit and 16-bit
+        std::swap(wordrefreg(r2), wordrefreg(r1));
+    } else if (r1 >= 8 && r1 <= 15 && r2 >= 8 && r2 <= 15) {
+        // 8-bit and 8-bit
+        std::swap(byterefreg(r2), byterefreg(r1));
+    } else {
+        // 8-bit and 16-bit is a bit strange
+        if (r1 <= 7) {
+            // r1 is 16-bit, so r2 must be 8-bit
+            Word& t1 = wordrefreg(r1);
+            Byte& t2 = byterefreg(r2);
+            Word temp = (t2<<8) | t2;
+
+            if (r2 == 8 || r2 == 11 || r2 == 14) {
+                // use msb of 16-bit reg
+                t2 = (t1>>8)&0xff;
+            }
+            else {
+                // use lsb of 16-bit reg
+                t2 = t1 & 0xff;
+            }
+            t1 = temp;
+
+        }
+        else if (r1 <= 15) {
+            // r1 is 8-bit so r2 must be 16-bit
+            Word& t1 = wordrefreg(r1);
+            Byte& t2 = byterefreg(r2);
+            Word temp = (t1<<8) | t1;
+
+            if (r1 == 8 || r1 == 11 || r1 == 14) {
+                // use msb of 16-bit reg
+                t1 = (t2>>8)&0xff;
+            }
+            else {
+                // use lsb of 16-bit reg
+                t1 = t2 & 0xff;
+            }
+            t2 = temp;
+        }
+    }
 
 	cycles += 6;
 }
@@ -1200,9 +1348,20 @@ void hd6309::ldu()
 	help_ld(u);
 }
 
+void hd6309::ldq()
+{
+    insn = ":LDQ";
+	q = fetch_dword_operand();
+	cc.bit.n = btst(x, 31);
+	cc.bit.v = 0;
+	cc.bit.z = !x;
+}
+
 void hd6309::ldmd()
 {
 	Byte imm = fetch_operand();
+
+    insn = ":LDMD";
     md.bit.nm = btst(imm, 0);
     md.bit.fm = btst(imm, 1);
 }
@@ -1318,6 +1477,12 @@ void hd6309::negb()
 	help_neg(b);
 }
 
+void hd6309::negd()
+{
+	insn = ":NEGD";
+	help_neg(d);
+}
+
 void hd6309::neg()
 {
 	insn = "NEG";
@@ -1374,6 +1539,20 @@ void hd6309::pshu()
 	cycles += 3;
 }
 
+void hd6309::pshsw()
+{
+	insn = ":PSHSW";
+    do_psh(s, w);
+	cycles += 4;
+}
+
+void hd6309::pshuw()
+{
+	insn = ":PSHUW";
+    do_psh(u, w);
+	cycles += 4;
+}
+
 void hd6309::puls()
 {
 	insn = "PULS";
@@ -1388,6 +1567,20 @@ void hd6309::pulu()
 	Byte w = fetch_operand();
 	help_pul(w, u, s);
 	cycles += 3;
+}
+
+void hd6309::pulsw()
+{
+	insn = ":PULSW";
+    do_pul(s, w);
+	cycles += 4;
+}
+
+void hd6309::puluw()
+{
+	insn = ":PULUW";
+    do_pul(u, w);
+	cycles += 4;
 }
 
 void hd6309::rola()
@@ -1502,6 +1695,15 @@ void hd6309::sex()
 	++cycles;
 }
 
+void hd6309::sexw()
+{
+	insn = ":SEXW";
+	cc.bit.n = btst(w, 15);
+	cc.bit.z = !w;
+	d = cc.bit.n ? 0xffff : 0;
+	cycles += 3;
+}
+
 void hd6309::sta()
 {
 	insn = "STA";
@@ -1560,6 +1762,16 @@ void hd6309::stu()
 {
 	insn = "STU";
 	help_st(u);
+}
+
+void hd6309::stq()
+{
+	Word	addr = fetch_effective_address();
+    insn = ":STQ";
+	write_dword(addr, q);
+	cc.bit.v = 0;
+	cc.bit.n = btst(q, 31);
+	cc.bit.z = !x;
 }
 
 void hd6309::suba()
@@ -1645,6 +1857,9 @@ void hd6309::sync()
 	insn = "SYNC";
 	waiting_sync = true;
 	++cycles;
+    if (exit_on_sync) {
+        halt();
+    }
 }
 
 void hd6309::tfr()
@@ -1654,13 +1869,34 @@ void hd6309::tfr()
 	int r1 = (w & 0xf0) >> 4;
 	int r2 = (w & 0x0f) >> 0;
 
-	if (r1 <= 5 && r2 <= 5) {
-		wordrefreg(r2) = wordrefreg(r1);
-	} else if (r1 >= 8 && r1 <= 11 && r2 >= 8 && r2 <= 11) {
-		byterefreg(r2) = byterefreg(r1);
-	} else {
-		invalid("invalid TFR operand");
-	}
+    if (r1 <= 5 && r2 <= 5) {
+        wordrefreg(r2) = wordrefreg(r1);
+    } else if (r1 >= 8 && r1 <= 11 && r2 >= 8 && r2 <= 11) {
+        byterefreg(r2) = byterefreg(r1);
+    } else {
+         // 8-bit and 16-bit is a bit strange
+        if (r1 <= 7) {
+            // r1 is 16-bit, so r2 must be 8-bit - 16-bit -> 8-bit
+            Word& t1 = wordrefreg(r1);
+            Byte& t2 = byterefreg(r2);
+
+            if (r2 == 8 || r2 == 11 || r2 == 14) {
+                // use msb of 16-bit reg
+                t2 = (t1>>8)&0xff;
+            }
+            else {
+                // use lsb of 16-bit reg
+                t2 = t1 & 0xff;
+            }
+        }
+        else if (r1 <= 15) {
+            // r1 is 8-bit so r2 must be 16-bit - 8-bit -> 16-bit
+            Word& t1 = wordrefreg(r1);
+            Byte& t2 = byterefreg(r2);
+
+            t2 = (t1<<8) | t1;
+        }
+   }
 
 	cycles += 4;
 }

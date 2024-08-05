@@ -122,6 +122,18 @@ Word USimMotorola::fetch_word()
 	return tmp;
 }
 
+DWord USimMotorola::fetch_dword()
+{
+	DWord		tmp;
+
+	tmp =  fetch() << 24;
+	tmp |= fetch() << 16;
+	tmp |= fetch() << 8;
+	tmp |= fetch();
+
+	return tmp;
+}
+
 Word USimMotorola::read_word(Word offset)
 {
 	Word		tmp;
@@ -132,8 +144,28 @@ Word USimMotorola::read_word(Word offset)
 	return tmp;
 }
 
+DWord USimMotorola::read_dword(Word offset)
+{
+	DWord		tmp;
+
+	tmp  = read(offset++) << 24;
+	tmp |= read(offset++) << 16;
+	tmp |= read(offset++) << 8;
+	tmp |= read(offset);
+
+	return tmp;
+}
+
 void USimMotorola::write_word(Word offset, Word val)
 {
+	write(offset++, (Byte)(val >> 8));
+	write(offset, (Byte)val);
+}
+
+void USimMotorola::write_dword(Word offset, DWord val)
+{
+	write(offset++, (Byte)(val >> 24));
+	write(offset++, (Byte)(val >> 16));
 	write(offset++, (Byte)(val >> 8));
 	write(offset, (Byte)val);
 }
@@ -152,6 +184,18 @@ Word USimIntel::fetch_word()
 	return tmp;
 }
 
+DWord USimIntel::fetch_dword()
+{
+	Word		tmp;
+
+	tmp  = fetch();
+	tmp |= fetch() << 8;
+	tmp |= fetch() << 16;
+	tmp |= fetch() << 24;
+
+	return tmp;
+}
+
 Word USimIntel::read_word(Word offset)
 {
 	Word		tmp;
@@ -162,8 +206,28 @@ Word USimIntel::read_word(Word offset)
 	return tmp;
 }
 
+DWord USimIntel::read_dword(Word offset)
+{
+	DWord		tmp;
+
+	tmp = read(offset++);
+	tmp |= (read(offset++) << 8);
+	tmp |= (read(offset++) << 16);
+	tmp |= (read(offset) << 24);
+
+	return tmp;
+}
+
 void USimIntel::write_word(Word offset, Word val)
 {
 	write(offset++, (Byte)val);
 	write(offset, (Byte)(val >> 8));
+}
+
+void USimIntel::write_dword(Word offset, DWord val)
+{
+	write(offset++, (Byte)val);
+	write(offset++, (Byte)(val >> 8));
+	write(offset++, (Byte)(val >> 16));
+	write(offset, (Byte)(val >> 24));
 }

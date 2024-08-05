@@ -30,12 +30,14 @@ void hd6309::reset()
 	cc.all = 0x00;		/* Clear all flags */
 	cc.bit.i = 1;		/* IRQ disabled */
 	cc.bit.f = 1;		/* FIRQ disabled */
+
+    md.all = 0;
+
 	waiting_sync = false;	/* not in SYNC */
 	waiting_cwai = false;	/* not in CWAI */
 	nmi_previous = true;	/* no NMI present */
 
-    md.bit.nm = 0;          /* 6809 emulation mode */
-    md.bit.fm = 0;          /* 6809 FIRQ mode */
+    exit_on_sync = false;
 }
 
 void hd6309::tick()
@@ -145,6 +147,8 @@ void hd6309::fetch_instruction()
 				mode = indexed;
 			} else if (ir < 0x38 || ir == 0x3c) {
 				mode = immediate;
+            } else if (ir >= 0x1030 && ir <= 0x1037) {
+                mode = reg2reg;
 			} else {
 				mode = inherent;
 			}
@@ -182,6 +186,8 @@ void hd6309::execute_instruction()
 			adca(); break;
 		case 0xc9: case 0xd9: case 0xe9: case 0xf9:
 			adcb(); break;
+        case 0x1089: case 0x1099: case 0x10a9: case 0x10b9:
+            adcd(); break;
 		case 0x8b: case 0x9b: case 0xab: case 0xbb:
 			adda(); break;
 		case 0xcb: case 0xdb: case 0xeb: case 0xfb:
@@ -194,6 +200,8 @@ void hd6309::execute_instruction()
 			addd(); break;
 		case 0x108b: case 0x109b: case 0x10ab: case 0x10bb:
 			addw(); break;
+        case 0x1030:
+            addr(); break;
 		case 0x84: case 0x94: case 0xa4: case 0xb4:
 			anda(); break;
 		case 0xc4: case 0xd4: case 0xe4: case 0xf4:
@@ -206,6 +214,8 @@ void hd6309::execute_instruction()
 			asra(); break;
 		case 0x57:
 			asrb(); break;
+        case 0x1047:
+            asrd(); break;
 		case 0x07: case 0x67: case 0x77:
 			asr(); break;
 		case 0x24:
@@ -376,6 +386,8 @@ void hd6309::execute_instruction()
 			ldx(); break;
 		case 0x108e: case 0x109e: case 0x10ae: case 0x10be:
 			ldy(); break;
+        case 0xcd: case 0x10dc: case 0x10ec: case 0x10fc:
+            ldq(); break;
         case 0x113d:
             ldmd(); break;
 		case 0x32:
@@ -417,6 +429,8 @@ void hd6309::execute_instruction()
 		case 0x50: case 0x51:
 			// 0x51 undocumented
 			negb(); break;
+        case 0x1040:
+            negd(); break;
 		case 0x00: case 0x01:
 		case 0x60: case 0x61:
 		case 0x70: case 0x71:
@@ -436,10 +450,18 @@ void hd6309::execute_instruction()
 			pshs(); break;
 		case 0x36:
 			pshu(); break;
+        case 0x1038:
+            pshsw(); break;
+        case 0x103a:
+            pshuw(); break;
 		case 0x35:
 			puls(); break;
 		case 0x37:
 			pulu(); break;
+        case 0x1039:
+            pulsw(); break;
+        case 0x103b:
+            puluw(); break;
 		case 0x49:
 			rola(); break;	
 		case 0x59:
@@ -472,6 +494,8 @@ void hd6309::execute_instruction()
             sbcd(); break;
 		case 0x1d:
 			sex(); break;
+        case 0x14:
+            sexw(); break;
 		case 0x97: case 0xa7: case 0xb7:
 			sta(); break;
 		case 0xd7: case 0xe7: case 0xf7:
@@ -492,6 +516,8 @@ void hd6309::execute_instruction()
 			stx(); break;
 		case 0x109f: case 0x10af: case 0x10bf:
 			sty(); break;
+        case 0x10dd: case 0x10ed: case 0x10fd:
+            stq(); break;
 		case 0x80: case 0x90: case 0xa0: case 0xb0:
 			suba(); break;
 		case 0xc0: case 0xd0: case 0xe0: case 0xf0:
@@ -572,8 +598,8 @@ void hd6309::print_regs()
 			flags[i] = '-';
 		}
 	}
-	fprintf(stderr, "PC:%04X CC:%s S:%04X U:%04X A:%02X B:%02X X:%04X Y:%04X DP:%02X\r\n",
-		pc, flags, s, u, a, b, x, y, dp);
+	fprintf(stderr, "PC:%04X CC:%s S:%04X U:%04X A:%02X B:%02X E:%02X F: %02X X:%04X Y:%04X V: %04X DP:%02X MD: %02X\r\n",
+		pc, flags, s, u, a, b, e, f, x, y, v, dp, md.all);
 }
 
 void hd6309::pre_exec()
@@ -602,6 +628,8 @@ Word& hd6309::wordrefreg(int r)
 		case  3: return u;
 		case  4: return s;
 		case  5: return pc;
+        case  6: return w;
+        case  7: return v;
 	}
 
 	invalid("invalid word register selector");
@@ -617,6 +645,8 @@ Byte& hd6309::byterefreg(int r)
 		case  9: return b;
 		case 10: return cc.all;
 		case 11: return dp;
+        case 14: return e;
+        case 15: return f;
 	}
 
 	invalid("invalid byte register selector");
@@ -643,7 +673,7 @@ Word& hd6309::ix_refreg(Byte post)
 Byte hd6309::fetch_operand()
 {
 	switch (mode) {
-		case immediate:
+		case immediate: case reg2reg:
 			return operand = extend8(fetch());
 		case relative: {
 			Byte r = fetch();
@@ -667,6 +697,21 @@ Word hd6309::fetch_word_operand()
 		}
 		default:
 			return read_word(fetch_effective_address());
+	}
+}
+
+DWord hd6309::fetch_dword_operand()
+{
+	switch (mode) {
+		case immediate:
+			return operand = fetch_dword();
+		case relative: {
+			Word r = fetch_dword();
+			operand = pc + r;
+			return r;
+		}
+		default:
+			return read_dword(fetch_effective_address());
 	}
 }
 
@@ -789,6 +834,24 @@ void hd6309::do_predecrement()
 	}
 }
 
+int hd6309::reg_size_compare(Byte regs)
+{
+    Byte r1 = regs>>4;
+    Byte r2 = regs&0x0f;
+
+    if ((r1 & 0x80) == (r2 & 0x80)) {
+        // same size
+        return 0;
+    }
+
+    if (r2 & 0x80) {
+        // low nibble is 8 bit
+        return -1;
+    }
+
+    return 1;
+}
+
 //---------------------------------------------------------------------
 //
 // disassembly support
@@ -818,12 +881,12 @@ static std::string disasm_reglist(Byte w, const char *other_sr)
 static std::string disasm_regpair(Byte w)
 {
 	static const char* regnames[] = {
-		"D", "X", "Y", "U", "S", "PC", "", "",
-		"A", "B", "CC", "DP", "", "", "", ""
+		"D", "X", "Y", "U", "S", "PC", "W", "V",
+		"A", "B", "CC", "DP", "", "", "E", "F"
 	};
 
 	int r1 = (w & 0xf0) >> 4;
-	int r2 = (w & 0x0f) >> 0;
+	int r2 = w & 0x0f;
 
 	return std::string(regnames[r1]) + "," + std::string(regnames[r2]);
 }
@@ -911,6 +974,8 @@ std::string hd6309::disasm_operand()
 			}
 			return r;
 		}
+        case reg2reg:
+            return disasm_regpair(operand);
 	}
 
 	return "";
