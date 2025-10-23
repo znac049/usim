@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <cstdarg>
 #include "usim.h"
 
 //----------------------------------------------------------------------------

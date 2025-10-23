@@ -1,5 +1,5 @@
 DEBUG		= -O3
-CXX			= g++ --std=c++17 -Wall -Wextra -Werror -flto
+CXX			= g++ --std=c++17 -Wall -Wextra -Werror -flto=auto
 CC			= gcc --std=c9x -Wall -Werror
 CCFLAGS		= $(DEBUG)
 CPPFLAGS	= -D_POSIX_SOURCE -I. -o $(@)
@@ -46,6 +46,8 @@ usim.o: usim.h device.h typedefs.h memory.h wiring.h
 usim.o: bits.h
 mc6809.o: mc6809.h wiring.h usim.h device.h typedefs.h
 mc6809.o: memory.h bits.h machdep.h
+hd6309.o: mc6809.h wiring.h usim.h device.h typedefs.h
+hd6309.o: memory.h bits.h machdep.h
 mc6809in.o: mc6809.h wiring.h usim.h device.h typedefs.h
 mc6809in.o: memory.h bits.h machdep.h
 mc6850.o: mc6850.h device.h typedefs.h wiring.h bits.h

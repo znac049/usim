@@ -587,50 +587,95 @@ void hd6309::addr()
     insn = ":ADDR";
     Byte regs = fetch_operand();
     int cmp = reg_size_compare(regs);
-    Word src = 42;
-    Word t1;
-    DWord t2;
-    int bitnum = 7;
+	Byte byteSrcVal=0;
+	Word wordSrcVal=0;
 
-    if (!cmp) {
-        // Source and destination are not the same size
+    if (cmp) {
+        /* Source and destination are not the same size. Adjust as follows:
+		dest is 8-bit   | lower 8 bits of 16-bit src
+
+		dest is 16-bit  | 8-bit src promted as follows:
+		  src is A or B | src becomes D
+		  src is E or F | src becomes W
+		  src is CC     | src becomes 0 in top 8 bits, CC in lower
+		  src is DP     | src becomes DP in upper 8 bits, zero in lower 8 bits
+		*/
+		Byte srcReg = regs >> 4;
+
+		if (srcReg & 0x08) {
+			// Src is 8-bit - promote
+			switch (srcReg) {
+				// A or B
+				case 8: case 9:
+					wordSrcVal = d;
+					break;
+
+				// E or F
+				case 14: case 15:
+					wordSrcVal = w;
+					break;
+
+				// DP
+				case 11:
+					wordSrcVal = ((Word) dp) << 8;
+					break;
+
+				// CC
+				case 10:
+					wordSrcVal = (Word)cc.all;
+					break;
+			}
+		}
+		else {
+			// Src is 16-bit - demote
+			Word& wordSrcReg = wordrefreg(srcReg);
+			byteSrcVal = (Byte) wordSrcReg & 0xff;
+		}
     }
+	else {
+		if (regs & 0x08) {
+			byteSrcVal = byterefreg(regs >> 4);
+		}
+		else {
+			wordSrcVal = wordrefreg(regs >> 4);
+		}
+	}
     
     if (regs & 0x08) {
         // 8-bit target
         Byte& dst = byterefreg(regs & 0xf);
+        Byte t = (byteSrcVal & 0x7f) + (dst & 0x7f);
+		Word bigt;
 
-        t1 = (src & 0x7f) + (dst & 0x7f);
+		cc.bit.n = cc.bit.z = cc.bit.v = cc.bit.c = 0;
+
+		bigt = (Word)byteSrcVal + dst;
+		dst = Byte(bigt & 0xff);
+
+		cc.bit.v = btst(t, 7);
+		cc.bit.c = btst(bigt, 8);
+		cc.bit.v ^= cc.bit.c;
+		cc.bit.n = btst(dst, 7);
+		cc.bit.z = !dst;
     }
     else {
         // 16-bit target
         Word& dst = wordrefreg(regs & 0xf);
-        bitnum = 15;
+		Word t = (wordSrcVal & 0x7fff) + (dst & 0x7fff);
+		DWord bigt;
 
-        t1 = (src & 0x7fff) + (dst & 0x7fff);
+		cc.bit.n = cc.bit.z = cc.bit.v = cc.bit.c = 0;
+
+		bigt = (DWord)wordSrcVal + dst;
+		dst = Word(bigt & 0xffff);
+
+		cc.bit.v = btst(t, 15);
+		cc.bit.c = btst(bigt, 16);
+		cc.bit.v ^= cc.bit.c;
+		cc.bit.n = btst(dst, 15);
+		cc.bit.z = !dst;
     }
 
-    t2 = (DWord)src + (Dword)dst;
-
-
-        // 16-bit src and dest
-        Word& src = wordrefreg(regs>>4);
-        Word& dst = wordrefreg(regs & 0xf);
-
-        {
-            Word t = (src & 0x7fff) + (dst & 0x7fff);
-            cc.bit.v = btst(t, 15);
-        }
-
-        {
-            DWord t = (DWord)src + dst;
-            cc.bit.c = btst(t, 16);
-            dst = (Word)(t & 0xffff);
-        }
-
-        cc.bit.v ^= cc.bit.c;
-        cc.bit.n = btst(dst, 15);
-        cc.bit.z = !dst;
     ++cycles;
 }
 

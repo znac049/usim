@@ -9,6 +9,7 @@
 #pragma once
 
 #include <string>
+#include "typedefs.h"
 #include "wiring.h"
 #include "usim.h"
 #include "bits.h"

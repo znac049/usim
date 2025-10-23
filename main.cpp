@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
 	rom->load(argv[1], rom_base);
 
 	cpu.reset();
+    // cpu.tron();
+    cpu.enable_exit_on_sync();
 	cpu.run();
 
 	return EXIT_SUCCESS;

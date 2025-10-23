@@ -616,7 +616,7 @@ void hd6309::post_exec()
 	fprintf(stderr, "/ %04X: [%2d] %-8s%s\r\n", insn_pc, cycles, insn, disasm_operand().c_str());
 }
 
-// used for EXG and TFR instructions
+// used for EXG and TFR instructions and some 6309 instructions
 Word& hd6309::wordrefreg(int r)
 {
 	static Word no_return = 0;
@@ -839,12 +839,12 @@ int hd6309::reg_size_compare(Byte regs)
     Byte r1 = regs>>4;
     Byte r2 = regs&0x0f;
 
-    if ((r1 & 0x80) == (r2 & 0x80)) {
+    if ((r1 & 0x08) == (r2 & 0x08)) {
         // same size
         return 0;
     }
 
-    if (r2 & 0x80) {
+    if (r2 & 0x08) {
         // low nibble is 8 bit
         return -1;
     }
