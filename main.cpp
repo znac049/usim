@@ -15,9 +15,18 @@
 
 int main(int argc, char *argv[])
 {
+	char *simDir = getenv("SIM_DIR");
+
 	if (argc != 2) {
 		fprintf(stderr, "usage: usim <hexfile>\n");
 		return EXIT_FAILURE;
+	}
+
+	if (simDir != NULL) {
+		if (chdir(simDir) != 0) {
+			printf("Couldn't change directory to '%s'\n", simDir);
+			exit(1);
+		}
 	}
 
 	(void)signal(SIGINT, SIG_IGN);

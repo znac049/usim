@@ -17,10 +17,14 @@
 
 dkc::dkc()
 {
+    char *diskName;
     reset();
 
-	openDisk("disk1.img", 0);
-    openDisk("disk2.img", 1);
+    diskName = getenv("SIM_DISK_1");
+	openDisk(diskName==NULL?"disk1.img":diskName, 0);
+
+    diskName = getenv("SIM_DISK_2");
+    openDisk(diskName==NULL?"disk2.img":diskName, 1);
 }
 
 dkc::~dkc()
