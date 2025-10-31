@@ -10,3 +10,4 @@ usim
 *.img
 *.decb
 \#*
+tests/a.out
